@@ -136,7 +136,8 @@ static int xsk_set_xdp_socket_config(struct xsk_socket_config *cfg,
 		return 0;
 	}
 
-	if (usr_cfg->libbpf_flags & ~XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD)
+	if (usr_cfg->libbpf_flags &
+      ~(XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD | XSK_LIBBPF_FLAGS__SKIP_BIND))
 		return -EINVAL;
 
 	cfg->rx_size = usr_cfg->rx_size;
@@ -704,21 +705,23 @@ int xsk_socket__create(struct xsk_socket **xsk_ptr, const char *ifname,
 	}
 	xsk->tx = tx;
 
-	sxdp.sxdp_family = PF_XDP;
-	sxdp.sxdp_ifindex = xsk->ifindex;
-	sxdp.sxdp_queue_id = xsk->queue_id;
-	if (umem->refcount > 1) {
-		sxdp.sxdp_flags = XDP_SHARED_UMEM;
-		sxdp.sxdp_shared_umem_fd = umem->fd;
-	} else {
-		sxdp.sxdp_flags = xsk->config.bind_flags;
-	}
+  if (!(xsk->config.libbpf_flags & XSK_LIBBPF_FLAGS__SKIP_BIND)) {
+    sxdp.sxdp_family = PF_XDP;
+    sxdp.sxdp_ifindex = xsk->ifindex;
+    sxdp.sxdp_queue_id = xsk->queue_id;
+    if (umem->refcount > 1) {
+      sxdp.sxdp_flags = XDP_SHARED_UMEM;
+      sxdp.sxdp_shared_umem_fd = umem->fd;
+    } else {
+      sxdp.sxdp_flags = xsk->config.bind_flags;
+    }
 
-	err = bind(xsk->fd, (struct sockaddr *)&sxdp, sizeof(sxdp));
-	if (err) {
-		err = -errno;
-		goto out_mmap_tx;
-	}
+    err = bind(xsk->fd, (struct sockaddr *)&sxdp, sizeof(sxdp));
+    if (err) {
+      err = -errno;
+      goto out_mmap_tx;
+    }
+  }
 
 	xsk->prog_fd = -1;
 

@@ -203,6 +203,7 @@ struct xsk_umem_config {
 
 /* Flags for the libbpf_flags field. */
 #define XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD (1 << 0)
+#define XSK_LIBBPF_FLAGS__SKIP_BIND         (1 << 1)
 
 struct xsk_socket_config {
 	__u32 rx_size;
